@@ -115,6 +115,46 @@ export const ECOMMERCE_STORE_ABI = [
   }
 ] as const;
 
+export const AGENT_WALLET_FACTORY_ABI = [
+  {
+    "inputs": [
+      { "internalType": "uint256", "name": "_initialSpendingCap", "type": "uint256" }
+    ],
+    "name": "createWallet",
+    "outputs": [{ "internalType": "address", "name": "", "type": "address" }],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "address", "name": "_user", "type": "address" }
+    ],
+    "name": "getWallets",
+    "outputs": [{ "internalType": "address[]", "name": "", "type": "address[]" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true, "internalType": "address", "name": "owner", "type": "address" },
+      { "indexed": false, "internalType": "address", "name": "walletAddress", "type": "address" }
+    ],
+    "name": "WalletCreated",
+    "type": "event"
+  },
+  {
+    "inputs": [
+      { "internalType": "address", "name": "", "type": "address" },
+      { "internalType": "uint256", "name": "", "type": "uint256" }
+    ],
+    "name": "userWallets",
+    "outputs": [{ "internalType": "address", "name": "", "type": "address" }],
+    "stateMutability": "view",
+    "type": "function"
+  }
+] as const;
+
 export const AGENT_WALLET_ABI = [
   {
     "inputs": [

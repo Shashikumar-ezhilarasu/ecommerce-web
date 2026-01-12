@@ -1,10 +1,10 @@
 'use client';
 
-import { useState } from 'react';
-import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
+import { useState, useEffect } from 'react';
+import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadContract } from 'wagmi';
 import { useCartStore } from '@/lib/cart-store';
 import { formatPrice } from '@/lib/utils';
-import { ECOMMERCE_STORE_ABI } from '@/lib/abi';
+import { ECOMMERCE_STORE_ABI, AGENT_WALLET_FACTORY_ABI } from '@/lib/abi';
 import { CONTRACT_ADDRESSES } from '@/lib/constants';
 import { parseEther } from 'ethers';
 import { Wallet, Bot, Loader2, CheckCircle2, Zap, CreditCard } from 'lucide-react';
@@ -20,6 +20,8 @@ export function CheckoutForm() {
 
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(PaymentMethod.WALLET);
   const [agentWalletAddress, setAgentWalletAddress] = useState('');
+  const [userAgentWallets, setUserAgentWallets] = useState<string[]>([]);
+  const [isLoadingWallets, setIsLoadingWallets] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [successTxHash, setSuccessTxHash] = useState<string>('');
   const [payfiTxHash, setPayfiTxHash] = useState<string>('');
@@ -31,6 +33,37 @@ export function CheckoutForm() {
   });
 
   const { wei, tokens } = getTotalPrice();
+
+  // Fetch user's agent wallets from AgentWalletFactory
+  const { data: wallets, isLoading: isWalletsLoading } = useReadContract({
+    address: CONTRACT_ADDRESSES.AGENT_WALLET_FACTORY as `0x${string}`,
+    abi: AGENT_WALLET_FACTORY_ABI,
+    functionName: 'getWallets',
+    args: address ? [address] : undefined,
+    query: {
+      enabled: !!address && !!CONTRACT_ADDRESSES.AGENT_WALLET_FACTORY && paymentMethod === PaymentMethod.AGENT,
+    },
+  });
+
+  // Update agent wallets when data is fetched
+  useEffect(() => {
+    if (wallets && Array.isArray(wallets)) {
+      const walletsArray = wallets as string[];
+      setUserAgentWallets(walletsArray);
+      
+      // Auto-select first wallet if available
+      if (walletsArray.length > 0 && !agentWalletAddress) {
+        setAgentWalletAddress(walletsArray[0]);
+      }
+    }
+  }, [wallets]);
+
+  // Reset agent wallet selection when payment method changes
+  useEffect(() => {
+    if (paymentMethod !== PaymentMethod.AGENT) {
+      setAgentWalletAddress('');
+    }
+  }, [paymentMethod]);
 
   const handlePayment = async () => {
     if (!isConnected || !address) {
@@ -205,19 +238,55 @@ export function CheckoutForm() {
 
           {paymentMethod === PaymentMethod.AGENT && (
             <div className="mt-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Agent Wallet Address
-              </label>
-              <input
-                type="text"
-                value={agentWalletAddress}
-                onChange={(e) => setAgentWalletAddress(e.target.value)}
-                placeholder="0x..."
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              />
-              <p className="mt-2 text-sm text-gray-500">
-                The agent wallet will be requested to authorize and complete the payment
-              </p>
+              {isWalletsLoading ? (
+                <div className="flex items-center justify-center p-4 bg-gray-50 rounded-lg">
+                  <Loader2 className="h-5 w-5 animate-spin text-primary-600 mr-2" />
+                  <span className="text-sm text-gray-600">Loading your agent wallets...</span>
+                </div>
+              ) : userAgentWallets.length > 0 ? (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Select Agent Wallet
+                  </label>
+                  <select
+                    value={agentWalletAddress}
+                    onChange={(e) => setAgentWalletAddress(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white"
+                  >
+                    {userAgentWallets.map((wallet, index) => (
+                      <option key={wallet} value={wallet}>
+                        Agent Wallet {index + 1}: {wallet.substring(0, 6)}...{wallet.substring(wallet.length - 4)}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="mt-2 p-3 bg-purple-50 border border-purple-200 rounded-lg">
+                    <p className="text-xs text-purple-700 font-mono break-all">
+                      {agentWalletAddress}
+                    </p>
+                  </div>
+                  <p className="mt-2 text-sm text-gray-500">
+                    The agent wallet will be requested to authorize and complete the payment
+                  </p>
+                </div>
+              ) : (
+                <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <p className="text-sm font-medium text-yellow-900 mb-2">
+                    No Agent Wallets Found
+                  </p>
+                  <p className="text-sm text-yellow-700 mb-3">
+                    You need to create an agent wallet first using the AgentWalletFactory contract.
+                  </p>
+                  {CONTRACT_ADDRESSES.AGENT_WALLET_FACTORY ? (
+                    <p className="text-xs text-yellow-600 font-mono">
+                      Factory: {CONTRACT_ADDRESSES.AGENT_WALLET_FACTORY}
+                    </p>
+                  ) : (
+                    <p className="text-xs text-red-600">
+                      AgentWalletFactory contract address not configured
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>
