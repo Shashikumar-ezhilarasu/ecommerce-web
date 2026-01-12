@@ -173,5 +173,33 @@ export const AGENT_WALLET_ABI = [
     "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
     "stateMutability": "view",
     "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getStats",
+    "outputs": [
+      { "internalType": "uint256", "name": "balance", "type": "uint256" },
+      { "internalType": "uint256", "name": "_creditAllocated", "type": "uint256" },
+      { "internalType": "uint256", "name": "_creditUsed", "type": "uint256" },
+      { "internalType": "uint256", "name": "_spendingCap", "type": "uint256" },
+      { "internalType": "uint256", "name": "_reputation", "type": "uint256" },
+      { "internalType": "uint256", "name": "_nonce", "type": "uint256" }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "spendingCap",
+    "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "creditUsed",
+    "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
+    "stateMutability": "view",
+    "type": "function"
   }
 ] as const;

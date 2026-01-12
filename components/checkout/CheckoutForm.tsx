@@ -4,9 +4,9 @@ import { useState, useEffect } from 'react';
 import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadContract } from 'wagmi';
 import { useCartStore } from '@/lib/cart-store';
 import { formatPrice } from '@/lib/utils';
-import { ECOMMERCE_STORE_ABI, AGENT_WALLET_FACTORY_ABI } from '@/lib/abi';
+import { ECOMMERCE_STORE_ABI, AGENT_WALLET_FACTORY_ABI, AGENT_WALLET_ABI } from '@/lib/abi';
 import { CONTRACT_ADDRESSES } from '@/lib/constants';
-import { parseEther } from 'ethers';
+import { parseEther, formatEther } from 'ethers';
 import { Wallet, Bot, Loader2, CheckCircle2, Zap, CreditCard } from 'lucide-react';
 import { PaymentMethod } from '@/lib/types';
 import { useRouter } from 'next/navigation';
@@ -57,6 +57,16 @@ export function CheckoutForm() {
       }
     }
   }, [wallets]);
+
+  // Fetch agent wallet stats (balance, spending cap, etc.)
+  const { data: agentStats, isLoading: isStatsLoading, refetch: refetchStats } = useReadContract({
+    address: agentWalletAddress as `0x${string}`,
+    abi: AGENT_WALLET_ABI,
+    functionName: 'getStats',
+    query: {
+      enabled: !!agentWalletAddress && paymentMethod === PaymentMethod.AGENT,
+    },
+  });
 
   // Reset agent wallet selection when payment method changes
   useEffect(() => {
@@ -111,18 +121,21 @@ export function CheckoutForm() {
           value: firstItem.product.priceInWei,
         });
       } else {
-        // Agent wallet payment
+        // Agent wallet payment - Request agent wallet to pay (no value sent from user)
         if (!agentWalletAddress) {
-          alert('Please enter agent wallet address');
+          alert('Please select an agent wallet');
           setIsProcessing(false);
           return;
         }
 
+        // This calls requestPaymentFromWallet which will trigger the agent wallet
+        // to execute the payment through its executeAction function
         writeContract({
           address: CONTRACT_ADDRESSES.ECOMMERCE_STORE as `0x${string}`,
           abi: ECOMMERCE_STORE_ABI,
           functionName: 'requestPaymentFromWallet',
           args: [BigInt(firstItem.product.id), agentWalletAddress as `0x${string}`],
+          // No value parameter - agent wallet will send the funds
         });
       }
     } catch (error) {
@@ -264,6 +277,58 @@ export function CheckoutForm() {
                       {agentWalletAddress}
                     </p>
                   </div>
+                  
+                  {/* Agent Wallet Stats */}
+                  {isStatsLoading ? (
+                    <div className="mt-3 p-3 bg-gray-50 border border-gray-200 rounded-lg flex items-center justify-center">
+                      <Loader2 className="h-4 w-4 animate-spin text-gray-600 mr-2" />
+                      <span className="text-xs text-gray-600">Loading wallet stats...</span>
+                    </div>
+                  ) : agentStats ? (
+                    <div className="mt-3 p-4 bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <p className="text-xs text-gray-600 mb-1">Balance</p>
+                          <p className="text-sm font-semibold text-gray-900">
+                            {formatEther(agentStats[0] as bigint)} SHM
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-600 mb-1">Spending Cap</p>
+                          <p className="text-sm font-semibold text-gray-900">
+                            {formatEther(agentStats[3] as bigint)} SHM
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-600 mb-1">Credit Used</p>
+                          <p className="text-sm font-semibold text-gray-900">
+                            {formatEther(agentStats[2] as bigint)} SHM
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-600 mb-1">Remaining Limit</p>
+                          <p className="text-sm font-semibold text-green-600">
+                            {formatEther((agentStats[3] as bigint) - (agentStats[2] as bigint))} SHM
+                          </p>
+                        </div>
+                      </div>
+                      {wei > (agentStats[0] as bigint) && (
+                        <div className="mt-3 p-2 bg-red-50 border border-red-200 rounded">
+                          <p className="text-xs text-red-700 font-medium">
+                            ⚠️ Insufficient balance. Need {formatEther(wei)} SHM
+                          </p>
+                        </div>
+                      )}
+                      {wei > ((agentStats[3] as bigint) - (agentStats[2] as bigint)) && (
+                        <div className="mt-3 p-2 bg-orange-50 border border-orange-200 rounded">
+                          <p className="text-xs text-orange-700 font-medium">
+                            ⚠️ Exceeds spending limit. Need {formatEther(wei)} SHM
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  ) : null}
+                  
                   <p className="mt-2 text-sm text-gray-500">
                     The agent wallet will be requested to authorize and complete the payment
                   </p>
