@@ -176,6 +176,59 @@ Modify `components/checkout/CheckoutForm.tsx` to implement custom payment logic 
 - Check RPC URL is working
 - Verify contract ABI matches deployed version
 
+# PayFi-Cred Agent Payment App
+
+This is a **secondary external app** designed to facilitate all transactions to an on-chain agent by requesting the agent wallet to pay on your behalf. It is intended to be used alongside your main e-commerce or dApp platform.
+
+## Purpose
+
+- Allows users to request payments from their own deployed agent wallets (smart contract wallets).
+- Handles all payment flows by interacting with the agent wallet, which then performs the actual transaction on-chain.
+- Useful for scenarios where users want to delegate payments, use programmable spending limits, or leverage credit/PayFi features.
+
+## How It Works
+
+1. **Connect Wallet:** User connects their EOA (Externally Owned Account) wallet.
+2. **Select Agent Wallet:** The app fetches all agent wallets deployed by the user (via AgentWalletFactory contract).
+3. **Request Payment:** User initiates a payment request for a product/order. The app calls the main contract's `requestPaymentFromWallet` function, passing the selected agent wallet address.
+4. **Agent Wallet Pays:** The agent wallet executes the payment on-chain, using its own balance and subject to its spending cap and policy.
+5. **Status & Feedback:** The app displays transaction status, agent wallet balance, and spending limits for transparency.
+
+## Features
+
+- **Automatic Agent Wallet Discovery:** Fetches all agent wallets for the connected user.
+- **Spending Cap & Balance Display:** Shows real-time agent wallet balance and spending cap before payment.
+- **No Direct User Payment:** All funds are sent from the agent wallet, not the user's EOA.
+- **Smart Contract Integration:** Works with ECommerceStore, AgentWallet, and AgentWalletFactory contracts.
+- **Warnings:** Alerts if agent wallet has insufficient balance or exceeds spending cap.
+
+## Environment Variables
+
+See `.env.example` for required configuration:
+
+- `NEXT_PUBLIC_ECOMMERCE_CONTRACT_ADDRESS` - Address of the ECommerceStore contract
+- `NEXT_PUBLIC_AGENT_WALLET_FACTORY_ADDRESS` - Address of the AgentWalletFactory contract
+- `NEXT_PUBLIC_PAYMENT_TOKEN_ADDRESS` - (Optional) ERC20 token address
+- `NEXT_PUBLIC_CHAIN_ID` and `NEXT_PUBLIC_RPC_URL` - Network configuration
+
+## Contracts Used
+
+- **ECommerceStore.sol**: Main store contract
+- **AgentWalletFactory.sol**: Deploys and tracks agent wallets for each user
+- **AgentWallet.sol**: Smart contract wallet that executes payments
+
+## Usage
+
+1. Deploy contracts and configure `.env.local`.
+2. Start the app and connect your wallet.
+3. Select an agent wallet and request payment for your order.
+4. The agent wallet will handle the transaction on-chain.
+
+## Security
+
+- Only agent wallets with sufficient balance and within their spending cap can pay.
+- Users must deploy and fund their own agent wallets.
+
 ## License
 
 MIT
